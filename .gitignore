@@ -69,7 +69,6 @@ env/
 
 # Data files
 *.csv
-*.xlsx
 *.xls
 data/
 output/
