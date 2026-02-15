@@ -114,10 +114,15 @@ class OneFactorModel(ABC):
         """
         payment_dates = np.asanyarray(payment_dates)
         cash_flows = np.asanyarray(cash_flows)
+        
+        # Filter to only include future cash flows (those at or after T_expiry)
+        future_mask = payment_dates >= T_expiry
+        future_payment_dates = payment_dates[future_mask]
+        future_cash_flows = cash_flows[future_mask]
 
         def objective(r):
-            prices = self.P(T_expiry, payment_dates, r)
-            return np.dot(prices, cash_flows) - K_bond
+            prices = self.P(T_expiry, future_payment_dates, r)
+            return np.dot(prices, future_cash_flows) - K_bond
 
         try:
             r_star = brentq(objective, -0.9, 2.0)
@@ -127,10 +132,10 @@ class OneFactorModel(ABC):
         print(f"Found r* = {r_star:.6f} for Jamshidian's Decomposition.")
         print( objective(r_star), " ....", objective(0.0100905) )
 
-        strikes_Ki = self.P(T_expiry, payment_dates, r_star)
-        option_prices = self.zcb_option(t, payment_dates, rt, T_expiry, strikes_Ki, option_type=option_type)
+        strikes_Ki = self.P(T_expiry, future_payment_dates, r_star)
+        option_prices = self.zcb_option(t, future_payment_dates, rt, T_expiry, strikes_Ki, option_type=option_type)
 
-        return cash_flows @ option_prices
+        return future_cash_flows @ option_prices
 
     def rate_option(self, t, rt, start_date, payment_dates, K_rate, nominal, option_type="cap"):
         """
