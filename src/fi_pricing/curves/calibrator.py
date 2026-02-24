@@ -55,8 +55,7 @@ class NSS_Calibrator:
             'nfev': result.nfev,
             'nit': result.nit if hasattr(result, 'nit') else None,
             'message': result.message,
-            'sse': result.fun,
-            'rmse': np.sqrt(result.fun / len(zcy_dict))
+            'sse': result.fun
         }
         
         if verbose:
@@ -64,8 +63,7 @@ class NSS_Calibrator:
             print(f"  Success: {result.success}")
             print(f"  Function evaluations: {result.nfev}")
             print(f"  Iterations: {self.optimization_result['nit']}")
-            print(f"  SSE: {result.fun:.6e}")
-            print(f"  RMSE: {self.optimization_result['rmse']:.6e}")
+            print(f"  Objective function value at optimum (SSE): {result.fun:.6e}")
             print(f"\nFitted Parameters:")
             print(f"  a = {a:.6f}")
             print(f"  b = {b:.6f}")
@@ -122,8 +120,7 @@ class NSS_Calibrator:
         tau = {self.params['tau']:.6f}
         theta = {self.params['theta']:.6f}
 
-        SSE = {self.optimization_result['sse']:.6e}
-        RMSE = {self.optimization_result['rmse']:.6e}"""
+        SSE = {self.optimization_result['sse']:.6e}"""
 
         plt.text(0.98, 0.35, params_text, transform=plt.gca().transAxes,
                 fontsize=10, verticalalignment='top', horizontalalignment='right',
