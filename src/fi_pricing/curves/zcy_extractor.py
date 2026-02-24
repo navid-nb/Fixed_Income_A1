@@ -71,7 +71,7 @@ class ZCYExtractor:
             self.P[T] = (100 - pv_known) / coeff_P_T
             self.zcy[T] = -np.log(self.P[T]) / T  # Convert to continuous compounding
         
-        return self.zcy.copy()
+        return self.zcy.copy(), self.P.copy()
     
     def get_discount_factors(self) -> Dict[float, float]:
         """Return all discount factors."""
@@ -109,9 +109,8 @@ if __name__ == "__main__":
     }
     
     # Extract zero-coupon yields
-    extractor = ZCYExtractor()
-    zcys = extractor.extract_zcy(money_market_yields, par_yields)
-    dfs = extractor.get_discount_factors()
+    extractor = ZCYExtractor(freq=2)
+    zcys, Ps = extractor.extract_zcy(money_market_yields, par_yields)
     
     # Display results
     print("=" * 60)
@@ -119,7 +118,7 @@ if __name__ == "__main__":
     print("-" * 60)
     
     for mat in sorted(zcys.keys()):
-        print(f"{mat:<20.4f} {zcys[mat]:<15.6f} {dfs[mat]:<15.6f}")
+        print(f"{mat:<20.4f} {zcys[mat]:<15.6f} {Ps[mat]:<15.6f}")
         
     print("=" * 60)
     
