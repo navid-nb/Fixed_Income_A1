@@ -96,16 +96,16 @@ class NSS_Calibrator:
         plt.figure(figsize=(12, 7))
 
         # Plot market data (discrete points)
-        plt.scatter(T_sorted, y_obs * 100, 
+        plt.scatter(T_sorted, y_obs, 
                 color='red', s=50, alpha=0.7, label='Market Zero-Coupon Yields', zorder=3)
 
         # Plot NSS fitted curve (smooth line)
-        plt.plot(T_smooth, y_smooth * 100, 
+        plt.plot(T_smooth, y_smooth, 
                 color='blue', linewidth=2.5, label='NSS Fitted Curve', zorder=2)
 
         # Labels and formatting
         plt.xlabel('Maturity (years)', fontsize=12, fontweight='bold')
-        plt.ylabel('Zero-Coupon Yield (%)', fontsize=12, fontweight='bold')
+        plt.ylabel('Zero-Coupon Yield', fontsize=12, fontweight='bold')
         plt.title('Nelson-Siegel-Svensson Yield Curve Fit\n(US Treasury Market Data, Sept 18, 2025)', 
                 fontsize=13, fontweight='bold')
         plt.grid(True, alpha=0.3, linestyle='--')
