@@ -51,21 +51,14 @@ class TwoFactorGaussianModel:
         self.y_t = y_t
 
 
-    def _V(self, t: float, T: float) -> float:
+    def _V(self, t: float, T):
         """
         Variance of the integral int_t^T (x_u + y_u) du  (Eq. 4.5).
-
-        V(t, T) =   sigma^2/a^2 * [T-t + (2/a)*e^{-a(T-t)} - (1/2a)*e^{-2a(T-t)} - 3/(2a)]
-                  + eta^2  /b^2 * [T-t + (2/b)*e^{-b(T-t)} - (1/2b)*e^{-2b(T-t)} - 3/(2b)]
-                  + 2*rho*sigma*eta / (a*b) * [
-                        T-t
-                        + (e^{-a(T-t)} - 1) / a
-                        + (e^{-b(T-t)} - 1) / b
-                        - (e^{-(a+b)(T-t)} - 1) / (a+b)
-                    ]
+        
+        Works with scalar or array T due to numpy broadcasting.
         """
         a, b, s, e, r = self.a, self.b, self.sigma, self.eta, self.rho
-        tau = T - t
+        tau = np.asarray(T) - t
 
         term_1 = (s**2 / a**2) * (
             tau
@@ -90,17 +83,19 @@ class TwoFactorGaussianModel:
 
         return term_1 + term_2 + term_3
 
-    def _Bx(self, t: float, T: float) -> float:
-        """(1 - e^{-a(T-t)}) / a  — x-factor loading in Eq. (4.4)."""
-        return (1.0 - np.exp(-self.a * (T - t))) / self.a
+    def _Bx(self, t: float, T):
+        """(1 - e^{-a(T-t)}) / a  — x-factor loading. Works with arrays."""
+        tau = np.asarray(T) - t
+        return (1.0 - np.exp(-self.a * tau)) / self.a
 
-    def _By(self, t: float, T: float) -> float:
-        """(1 - e^{-b(T-t)}) / b  — y-factor loading in Eq. (4.4)."""
-        return (1.0 - np.exp(-self.b * (T - t))) / self.b
+    def _By(self, t: float, T):
+        """(1 - e^{-b(T-t)}) / b  — y-factor loading. Works with arrays."""
+        tau = np.asarray(T) - t
+        return (1.0 - np.exp(-self.b * tau)) / self.b
 
-    def _B_full(self, t: float, T: float) -> float:
+    def _B_full(self, t: float, T):
         """
-        Exponent in the ZCB formula (Eq. 4.4):
+        Exponent in the ZCB formula (Eq. 4.4). Works with arrays.
 
         B(t, T) = 1/2 * [V(t,T) - V(0,T) + V(0,t)]
                   - Bx(t,T) * x_t
@@ -111,7 +106,7 @@ class TwoFactorGaussianModel:
 
 
 
-    def P(self, t: float, T: float) -> float:
+    def P(self, t: float, T) -> float:
         """
         Zero-coupon bond price at time t for maturity T, given state (x_t, y_t).
 
@@ -120,11 +115,23 @@ class TwoFactorGaussianModel:
         Parameters
         ----------
         t : float — current evaluation time (0 = curve-fitting date)
-        T : float — bond maturity
+        T : float or array — bond maturity/maturities
+        
+        Returns
+        -------
+        float or array — bond price(s)
         """
+        T = np.asarray(T)
+        scalar_input = T.ndim == 0
+        
         Pm_0T = self.curve.P(0.0, T)
         Pm_0t = self.curve.P(0.0, t)
-        return (Pm_0T / Pm_0t) * np.exp(self._B_full(t, T))
+        
+        # _B_full already works with arrays via numpy broadcasting
+        B_vals = self._B_full(t, T)
+        
+        result = (Pm_0T / Pm_0t) * np.exp(B_vals)
+        return float(result) if scalar_input else result
 
     def zcy(self, t: float, T: float) -> float:
         """Continuously compounded zero-coupon yield for maturity T at time t."""
@@ -133,7 +140,7 @@ class TwoFactorGaussianModel:
 
 
 
-    def _sigma_P(self, t: float, T_call: float, T_bond: float) -> float:
+    def _sigma_P(self, t: float, T_call, T_bond) -> float:
         """
         Bond return standard deviation for the ZCB option formula (Eq. 4.8).
 
@@ -142,11 +149,19 @@ class TwoFactorGaussianModel:
                     + 2*rho*sigma*eta / (ab(a+b))
                       * (1 - e^{-a(T_bond-T_call)}) * (1 - e^{-b(T_bond-T_call)}) * (1 - e^{-(a+b)*(T_call-t)})
 
-        Notes
-        -----
-        In the textbook formulas T_call appears bare (i.e., t=0 is implicit). Here we
-        shift by the current evaluation time so the formula works for any t.
+        Parameters
+        ----------
+        t      : float — current time
+        T_call : float or array — option expiry/expiries
+        T_bond : float or array — bond maturity/maturities
+        
+        Returns
+        -------
+        float or array — bond volatility/volatilities
         """
+        T_call = np.asarray(T_call)
+        T_bond = np.asarray(T_bond)
+        
         a, b, s, e, r = self.a, self.b, self.sigma, self.eta, self.rho
         tau_opt  = T_call - t           # time to option expiry from now
         tau_bond = T_bond - T_call      # bond life remaining after option expiry
@@ -168,7 +183,7 @@ class TwoFactorGaussianModel:
         )
 
         sigma_p2 = term1 + term2 + term3
-        return np.sqrt(max(sigma_p2, 1e-18))
+        return np.sqrt(np.maximum(sigma_p2, 1e-18))
 
 
 
@@ -270,6 +285,66 @@ class TwoFactorGaussianModel:
             total += self.caplet_price(t, T_reset, T_pay, K_rate, nominal)
 
         return total
+
+    def cap_prices_batch(
+        self,
+        t: float,
+        payment_dates_list: list,
+        strikes: np.ndarray,
+        nominal: float = 1.0,
+    ) -> np.ndarray:
+        """
+        Vectorized batch cap pricing for multiple maturities and strikes.
+        
+        Parameters
+        ----------
+        t                   : evaluation time
+        payment_dates_list  : list of payment date arrays, one per maturity
+        strikes             : 1D array of strike rates
+        nominal             : notional
+        
+        Returns
+        -------
+        prices : (n_maturities, n_strikes) array of cap prices
+        """
+        n_mat = len(payment_dates_list)
+        n_str = len(strikes)
+        prices = np.zeros((n_mat, n_str))
+        
+        # Vectorize over maturities
+        for i, pay_dates in enumerate(payment_dates_list):
+            reset_dates = np.concatenate(([t], pay_dates[:-1]))
+            mask = (reset_dates > t + 1e-9) & (reset_dates < pay_dates)
+            valid_resets = reset_dates[mask]
+            valid_pays = pay_dates[mask]
+            
+            if len(valid_resets) == 0:
+                continue
+            
+            # Compute bond prices and vols ONCE per maturity (vectorized)
+            P_bond = self.P(t, valid_pays)
+            P_call = self.P(t, valid_resets)
+            sigma_p = self._sigma_P(t, valid_resets, valid_pays)
+            
+            # Now vectorize across strikes: (n_caplets, n_strikes)
+            tau = valid_pays - valid_resets  # (n_caplets,)
+            strikes_2d = strikes[np.newaxis, :]  # (1, n_strikes)
+            tau_2d = tau[:, np.newaxis]  # (n_caplets, 1)
+            
+            K_prime = 1.0 / (1.0 + strikes_2d * tau_2d)  # (n_caplets, n_strikes)
+            M_prime = nominal * (1.0 + strikes_2d * tau_2d)
+            
+            # Broadcast bond prices and vols
+            P_bond_2d = P_bond[:, np.newaxis]  # (n_caplets, 1)
+            P_call_2d = P_call[:, np.newaxis]
+            sigma_p_2d = sigma_p[:, np.newaxis]
+            
+            h = sigma_p_2d / 2.0 + np.log(P_bond_2d / (K_prime * P_call_2d)) / sigma_p_2d
+            put_values = K_prime * P_call_2d * norm.cdf(sigma_p_2d - h) - P_bond_2d * norm.cdf(-h)
+            
+            prices[i, :] = np.sum(M_prime * put_values, axis=0)  # Sum over caplets
+        
+        return prices
 
     def forward_swap_rate(
         self,
