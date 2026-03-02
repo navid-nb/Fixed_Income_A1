@@ -14,33 +14,28 @@ python -m venv venv
 pip install -r requirements.txt
 ```
 
-### 3. Run Main Notebook
-Open `Assignment_1.ipynb` in Jupyter or VS Code and run all cells.
+### 3. Run Notebook
+- **Part 1**: Open `Assignment_1.ipynb` and run all 
 
 ## Codebase Structure
 
 ```
 src/fi_pricing/
 ├── curves/              # Yield curve models
-│   ├── base.py          # Abstract base class for curves
-│   ├── nss.py           # Nelson-Siegel-Svensson implementation
-│   ├── calibrator.py    # NSS parameter calibration
-│   └── zcy_extractor.py # Extract zero-coupon yields from bonds
-│
+│   ├── base.py          # Abstract base class
+│   ├── nss.py           # Nelson-Siegel-Svensson
+│   ├── calibrator.py    # NSS calibration
+│   └── zcy_extractor.py # Zero-coupon yield extraction
 ├── models/              # Interest rate models
-│   ├── affine.py        # Abstract base for affine models
-│   ├── one_factor.py    # Vasicek, CIR, Hull-White (1-factor)
+│   ├── affine.py        # Affine model base
+│   ├── one_factor.py    # Vasicek, CIR, Hull-White
 │   └── twoFG.py         # Two-Factor Gaussian (G2++)
-│
-scripts/
-└── part2_run.py         # Batch runner for Part 2 exercises
 
-Data/                    # Market data (bonds, swaps, caps)
-part2_outputs/           # Generated plots and results
+src/part2/
+└── analysis.py          # CIR/EKF estimation & weekly yields
+
+src/helpers/
+└── two_factor_gaussian_calibration.py  # Cap pricing utilities
+
+Data/                    # Market data file
 ```
-
-### Key Features
-- **NSS Calibration**: Fit yield curves to market bond prices
-- **Affine Models**: Closed-form pricing for bonds and options (Jamshidian decomposition)
-- **G2++ Model**: Two-factor Gaussian model with cap/swaption calibration
-- **Vectorized**: Numpy-based batch operations for performance

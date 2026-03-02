@@ -69,8 +69,6 @@ env/
 
 # Data files
 *.csv
-*.xls
-data/
 output/
 
 # OS
